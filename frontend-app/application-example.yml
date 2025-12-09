@@ -1,0 +1,63 @@
+# Example configuration for OAuth2 OIDC
+# Copy this file and customize with your OAuth2 provider credentials
+# Rename to application.yml (or application-{profile}.yml for environment-specific config)
+
+spring:
+  application:
+    name: frontend-app
+
+  security:
+    oauth2:
+      client:
+        registration:
+          # Google OAuth2 Configuration
+          google:
+            client-id: YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com
+            client-secret: YOUR_GOOGLE_CLIENT_SECRET
+            scope: openid,profile,email
+            redirect-uri: http://localhost:8080/login/oauth2/code/google
+            client-name: Google
+
+          # GitHub OAuth2 Configuration (Optional)
+          github:
+            client-id: YOUR_GITHUB_CLIENT_ID
+            client-secret: YOUR_GITHUB_CLIENT_SECRET
+            scope: user:email
+            redirect-uri: http://localhost:8080/login/oauth2/code/github
+            client-name: GitHub
+
+          # Keycloak Configuration (Optional)
+          # keycloak:
+          #   client-id: frontend-app
+          #   client-secret: YOUR_KEYCLOAK_CLIENT_SECRET
+          #   authorization-grant-type: authorization_code
+          #   redirect-uri: http://localhost:8080/login/oauth2/code/keycloak
+          #   scope: openid,profile,email
+          #   client-name: Keycloak
+
+        provider:
+          google:
+            issuer-uri: https://accounts.google.com
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: email
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://www.googleapis.com/oauth2/v4/token
+
+          # Keycloak Provider (Optional)
+          # keycloak:
+          #   issuer-uri: http://localhost:8080/realms/YOUR_REALM
+          #   user-name-attribute: preferred_username
+
+server:
+  port: 8080
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        secure: false  # Set to true in production with HTTPS
+        same-site: lax
+
+logging:
+  level:
+    root: INFO
+    org.springframework.security: DEBUG  # Enable for debugging OAuth2 flow
