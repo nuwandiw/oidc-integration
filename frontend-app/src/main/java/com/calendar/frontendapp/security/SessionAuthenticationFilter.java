@@ -2,61 +2,66 @@ package com.calendar.frontendapp.security;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
-import org.springframework.web.server.ServerWebExchange;
-import org.springframework.web.server.WebFilter;
-import org.springframework.web.server.WebFilterChain;
-import reactor.core.publisher.Mono;
+import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.net.URI;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import java.io.IOException;
 
 /**
- * WebFilter for extracting and validating OAuth2 access tokens from the session.
+ * Servlet-based filter for extracting and validating OAuth2 access tokens from the session.
  * If an access token is found in the session, it creates an OAuth2AuthenticationToken
  * and establishes it in the SecurityContext for the request.
  */
-public class SessionAuthenticationFilter implements WebFilter {
+public class SessionAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(SessionAuthenticationFilter.class);
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        String path = exchange.getRequest().getPath().value();
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+        String path = request.getRequestURI();
+
+        // Skip filtering for public endpoints
         if (path.equals("/") || path.equals("/login") || path.startsWith("/oauth2/callback") || path.equals("/oauth2/authorize")) {
-            return chain.filter(exchange);
+            filterChain.doFilter(request, response);
+            return;
         }
-        return exchange.getSession()
-                .flatMap(session -> {
-                    String accessToken = (String) session.getAttributes().get("access_token");
-                    String tokenType = (String) session.getAttributes().get("token_type");
-                    String username = (String) session.getAttributes().get("username");
 
-                    if (accessToken != null && !accessToken.isEmpty()) {
-                        logger.debug("Found access token in session for user: {}", username != null ? username : "unknown");
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            logger.debug("No session found for request to {}", path);
+            response.sendRedirect("/login");
+            return;
+        }
 
-                        // Create custom OAuth2 authentication token
-                        OAuth2AuthenticationToken authToken = new OAuth2AuthenticationToken(
-                                username != null ? username : "anonymous-user",
-                                accessToken,
-                                tokenType != null ? tokenType : "Bearer",
-                                java.util.Collections.emptyList()
-                        );
+        String accessToken = (String) session.getAttribute("access_token");
+        String tokenType = (String) session.getAttribute("token_type");
+        String username = (String) session.getAttribute("username");
 
-                        // Create SecurityContext with the authentication token
-                        SecurityContext securityContext = new SecurityContextImpl(authToken);
+        if (accessToken != null && !accessToken.isEmpty()) {
+            logger.debug("Found access token in session for user: {}", username != null ? username : "unknown");
+            OAuth2AuthenticationToken authToken = new OAuth2AuthenticationToken(
+                    username != null ? username : "anonymous-user",
+                    accessToken,
+                    tokenType != null ? tokenType : "Bearer",
+                    java.util.Collections.emptyList()
+            );
 
-                        logger.debug("Session-based authentication established for user: {}", authToken.getName());
+            SecurityContext securityContext = new SecurityContextImpl(authToken);
+            SecurityContextHolder.setContext(securityContext);
+            logger.debug("Session-based authentication established for user: {}", authToken.getName());
 
-                        return chain.filter(exchange)
-                                .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(Mono.just(securityContext)));
-                    }
-                    logger.info("No access token found in session");
-                    exchange.getResponse().setStatusCode(HttpStatus.FOUND);
-                    exchange.getResponse().getHeaders().setLocation(URI.create("/login"));
-                    return Mono.empty();
-                });
+            filterChain.doFilter(request, response);
+        } else {
+            logger.info("No access token found in session");
+            response.sendRedirect("/login");
+        }
     }
 }

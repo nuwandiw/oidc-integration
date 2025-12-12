@@ -3,6 +3,10 @@ spring:
     name: frontend-app
 
   oauth2:
+    resourceserver:
+      jwt:
+        issuer-uri: https://kc.idp.com:8443/realms/IBM
+        jwk-set-uri: https://kc.idp.com:8443/realms/IBM/protocol/openid-connect/certs
     client:
       id: frontend-app
       scope: basic
@@ -19,6 +23,10 @@ spring:
 server:
   port: 8081
 
+logging:
+  level:
+    org:
+      keycloak: DEBUG
 keycloak:
   policy-enforcer-config:
     enforcement-mode: ENFORCING

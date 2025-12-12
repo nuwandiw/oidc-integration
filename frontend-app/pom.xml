@@ -28,10 +28,10 @@
     </properties>
 
     <dependencies>
-        <!-- Spring Boot WebFlux Starter for Reactive Programming -->
+        <!-- Spring Boot Web Starter (Servlet-based MVC) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
+            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
         <dependency>
@@ -87,11 +87,10 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- RestTemplate for HTTP requests -->
         <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>javax.servlet-api</artifactId>
-            <version>4.0.1</version>
-            <scope>provided</scope>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
         </dependency>
 
         <!-- Test Dependencies -->
