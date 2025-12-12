@@ -1,11 +1,11 @@
 package com.calendar.frontendapp.security.oauth2;
 
+import com.calendar.frontendapp.security.oauth2.dpop.DPoPService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.web.client.RestTemplate;
 
 @Configuration
@@ -28,6 +28,11 @@ public class OAuth2ClientConfig {
 
     @Value("${spring.oauth2.client.secret}")
     private String clientSecret;
+
+    private boolean dpopEnabled = true;
+
+    @Autowired
+    DPoPService dPoPService;
 
     /**
      * Creates a RestTemplate bean for making HTTP requests to the authorization server.
@@ -54,6 +59,7 @@ public class OAuth2ClientConfig {
                 .authorizationUri(authorizationUri)
                 .tokenUri(tokenUri)
                 .clientSecret(clientSecret)
+                .dpopEnabled(true)
                 .build();
     }
 
@@ -64,6 +70,6 @@ public class OAuth2ClientConfig {
      */
     @Bean
     public OAuth2Client oAuth2Client(RestTemplate restTemplate) {
-        return new OAuth2Client(oAuth2Properties(), restTemplate);
+        return new OAuth2Client(oAuth2Properties(), restTemplate, dPoPService);
     }
 }

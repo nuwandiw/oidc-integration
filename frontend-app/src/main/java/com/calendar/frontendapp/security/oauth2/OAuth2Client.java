@@ -1,5 +1,6 @@
 package com.calendar.frontendapp.security.oauth2;
 
+import com.calendar.frontendapp.security.oauth2.dpop.DPoPService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
@@ -22,10 +23,12 @@ public class OAuth2Client {
 
     private OAuth2Properties properties;
     private RestTemplate restTemplate;
+    private DPoPService dPoPService;
 
-    public OAuth2Client(OAuth2Properties properties, RestTemplate restTemplate) {
+    public OAuth2Client(OAuth2Properties properties, RestTemplate restTemplate, DPoPService dPoPService) {
         this.properties = properties;
         this.restTemplate = restTemplate;
+        this.dPoPService = dPoPService;
     }
 
     public String authorizationUrl(HttpSession session) {
@@ -67,6 +70,11 @@ public class OAuth2Client {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         headers.setAccept(java.util.Collections.singletonList(MediaType.APPLICATION_JSON));
+
+        if (properties.isDpopEnabled()) {
+            String dpopProof = dPoPService.generateDPoP("POST", properties.getTokenUri(), null);
+            headers.add("DPoP", dpopProof); // Placeholder for actual DPoP proof generation
+        }
 
         HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(formData, headers);
 

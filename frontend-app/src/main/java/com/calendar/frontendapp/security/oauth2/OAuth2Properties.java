@@ -8,6 +8,7 @@ public class OAuth2Properties {
     private String authorizationUri;
     private String tokenUri;
     private String clientSecret;
+    private boolean dpopEnabled;
 
     private OAuth2Properties(Builder builder) {
         this.clientId = builder.clientId;
@@ -16,6 +17,7 @@ public class OAuth2Properties {
         this.authorizationUri = builder.authorizationUri;
         this.tokenUri = builder.tokenUri;
         this.clientSecret = builder.clientSecret;
+        this.dpopEnabled = builder.dpopEnabled;
     }
 
     public static Builder builder() {
@@ -46,6 +48,10 @@ public class OAuth2Properties {
         return clientSecret;
     }
 
+    public boolean isDpopEnabled() {
+        return dpopEnabled;
+    }
+
     public static class Builder {
         private String clientId;
         private String redirectUri;
@@ -53,6 +59,7 @@ public class OAuth2Properties {
         private String authorizationUri;
         private String tokenUri;
         private String clientSecret;
+        private boolean dpopEnabled = false;
 
         public Builder clientId(String clientId) {
             this.clientId = clientId;
@@ -81,6 +88,11 @@ public class OAuth2Properties {
 
         public Builder clientSecret(String clientSecret) {
             this.clientSecret = clientSecret;
+            return this;
+        }
+
+        public Builder dpopEnabled(boolean dpopEnabled) {
+            this.dpopEnabled = dpopEnabled;
             return this;
         }
 
