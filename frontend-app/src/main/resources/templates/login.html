@@ -103,7 +103,7 @@
         <h1>Welcome</h1>
         <div class="login-content">
             <div th:if="${error}" class="error-message" th:text="${error}"></div>
-            <form method="post" th:action="@{/oauth2/authorize}">
+            <form method="post" th:action="@{/oauth2/authorize?acr=silver&targetPage=home}">
                 <button type="submit" class="oauth2-button google-button">
                     <span>Sign in with IdP</span>
                 </button>

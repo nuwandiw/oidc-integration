@@ -2,11 +2,13 @@ package com.calendar.frontendapp.security.oauth2;
 
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Optional;
 
 public class OAuthUtil {
 
@@ -25,8 +27,8 @@ public class OAuthUtil {
         return result.toString();
     }
 
-    public static String generateState() {
-        return generateRandomString(STATE_LENGTH);
+    public static String generateState(String landingUrl) {
+        return landingUrl + "__" + generateRandomString(STATE_LENGTH);
     }
 
     public static String generateCodeVerifier() {
@@ -44,11 +46,16 @@ public class OAuthUtil {
     }
 
     public static String buildAuthorizationUrl(String authorizationEndpoint,
-                                        String clientId,
-                                        String redirectUri,
-                                        String scope,
-                                        String state,
-                                        String codeChallenge) {
+                                               String clientId,
+                                               String redirectUri, String scope,
+                                               String state,
+                                               String codeChallenge,
+                                               Optional<String> acr) {
+
+        String acrValue = "silver"; //TODO make configurable
+        if (acr.isPresent()) {
+            acrValue = acr.get();
+        }
         return UriComponentsBuilder.fromHttpUrl(authorizationEndpoint)
                 .queryParam("client_id", clientId)
                 .queryParam("response_type", "code")
@@ -57,6 +64,7 @@ public class OAuthUtil {
                 .queryParam("state", state)
                 .queryParam("code_challenge", codeChallenge)
                 .queryParam("code_challenge_method", "S256")
+                .queryParam("claims", URLEncoder.encode("{\"id_token\":{\"acr\":{\"essential\":true,\"values\":[\"" + acrValue +"\"]}}}"))
                 .build()
                 .toUriString();
     }

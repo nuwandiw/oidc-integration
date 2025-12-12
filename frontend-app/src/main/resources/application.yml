@@ -10,7 +10,7 @@ spring:
     client:
       id: frontend-app
       secret: your-client-secret
-      scope: basic
+      scope: openid
       authorization-uri: https://kc.idp.com:8443/realms/IBM/protocol/openid-connect/auth
       token-uri: https://kc.idp.com:8443/realms/IBM/protocol/openid-connect/token
       redirect-uri: http://localhost:8081/oauth2/callback

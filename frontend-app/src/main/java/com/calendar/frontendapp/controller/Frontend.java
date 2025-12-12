@@ -38,11 +38,16 @@ public class Frontend {
         return Mono.just("login");
     }
 
+    @GetMapping("/calendar")
+    public Mono<String> calendar(WebSession session, Model model) {
+        return authorize(session,"gold", "calendar");
+    }
+
     @PostMapping("/oauth2/authorize")
-    public Mono<String> authorize(WebSession session) {
+    public Mono<String> authorize(WebSession session, @RequestParam String acr, @RequestParam String targetPage) {
         return Mono.defer(() -> {
             try {
-                String authorizationUrl = oauth2Client.authorizationUrl(session);
+                String authorizationUrl = oauth2Client.authorizationUrl(session, acr, targetPage);
                 if (authorizationUrl != null) {
                     return Mono.just("redirect:" + authorizationUrl);
                 }
@@ -77,8 +82,9 @@ public class Frontend {
             return Mono.just("login");
         }
 
+        String target = state.split("__")[0];
         return oauth2Client.tokenExchange(session, code)
-                .then(Mono.just("redirect:/home"))
+                .then(Mono.just("redirect:/home?target=" + target))
                 .onErrorResume(ex -> {
                     model.addAttribute("error", "Token exchange failed: " + ex.getMessage());
                     return Mono.just("login");

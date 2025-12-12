@@ -267,8 +267,8 @@
                 <p>You have successfully logged in with OAuth2 OIDC!</p>
             </div>
 
-            <button id="calendar-button" class="calendar-button" th:data-access-token="${accessToken}" onclick="callCalendarApi()">Show Calendar</button>
-
+            <button id="calendar-button-for-data" hidden th:data-access-token="${accessToken}"></button>
+            <button id="calendar-button" class="calendar-button" onclick="window.location.href='/calendar'">Show Calendar</button>
             <div id="loading" class="loading">
                 <p>Loading calendar data...</p>
             </div>
@@ -298,11 +298,22 @@
 
     <script>
         /**
+         * Checks for the "target" query parameter on page load.
+         * If target=calendar, automatically calls callCalendarApi().
+         */
+        document.addEventListener('DOMContentLoaded', function() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('target') === 'calendar') {
+                callCalendarApi();
+            }
+        });
+
+        /**
          * Calls the /api/calendar endpoint with Bearer token authorization.
          * Retrieves the access token from the button's data attribute.
          */
         function callCalendarApi() {
-            const calendarButton = document.getElementById('calendar-button');
+            const calendarButton = document.getElementById('calendar-button-for-data');
             const accessToken = calendarButton.getAttribute('data-access-token');
 
             // Validate that access token is available

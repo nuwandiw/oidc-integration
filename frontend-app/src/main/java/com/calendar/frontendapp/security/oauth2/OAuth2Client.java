@@ -8,6 +8,8 @@ import reactor.core.publisher.Mono;
 
 import org.springframework.web.server.WebSession;
 
+import java.util.Optional;
+
 import static com.calendar.frontendapp.security.oauth2.OAuthUtil.buildAuthorizationUrl;
 import static com.calendar.frontendapp.security.oauth2.OAuthUtil.generateCodeChallenge;
 import static com.calendar.frontendapp.security.oauth2.OAuthUtil.generateCodeVerifier;
@@ -27,8 +29,8 @@ public class OAuth2Client {
         this.dPoPService = dPoPService;
     }
 
-    public String authorizationUrl(WebSession session) {
-        String state = generateState();
+    public String authorizationUrl(WebSession session, String acr, String targetPage) {
+        String state = generateState(targetPage);
         String codeVerifier = generateCodeVerifier();
         String codeChallenge = generateCodeChallenge(codeVerifier);
 
@@ -41,7 +43,8 @@ public class OAuth2Client {
                 properties.getRedirectUri(),
                 properties.getScope(),
                 state,
-                codeChallenge
+                codeChallenge,
+                Optional.ofNullable(acr)
         );
     }
 
@@ -68,7 +71,7 @@ public class OAuth2Client {
                     session.getAttributes().put("access_token", tokenResponse.getAccessToken());
                     session.getAttributes().put("token_type", tokenResponse.getTokenType());
                     session.getAttributes().put("expires_in", tokenResponse.getExpiresIn());
-                    logger.debug("Token exchange successful, stored tokens in session");
+                    logger.info("Token exchange successful, stored tokens in session");
                 })
                 .onErrorStop();
     }
