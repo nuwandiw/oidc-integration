@@ -1,34 +1,30 @@
 package com.calendar.frontendapp.security.oauth2;
 
+import com.calendar.frontendapp.security.oauth2.dpop.DPoPService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.server.WebSession;
 import reactor.core.publisher.Mono;
 
+import org.springframework.web.server.WebSession;
 
 import static com.calendar.frontendapp.security.oauth2.OAuthUtil.buildAuthorizationUrl;
 import static com.calendar.frontendapp.security.oauth2.OAuthUtil.generateCodeChallenge;
 import static com.calendar.frontendapp.security.oauth2.OAuthUtil.generateCodeVerifier;
 import static com.calendar.frontendapp.security.oauth2.OAuthUtil.generateState;
-import static org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED;
-import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames.CLIENT_ID;
-import static org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames.CLIENT_SECRET;
-import static org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames.CODE;
-import static org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames.GRANT_TYPE;
-import static org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames.REDIRECT_URI;
 
 public class OAuth2Client {
 
     private static final Logger logger = LoggerFactory.getLogger(OAuth2Client.class);
 
-    private OAuth2Properties properties;
-    private WebClient webClient;
+    private final WebClient webClient;
+    private final OAuth2Properties properties;
+    private final DPoPService dPoPService;
 
-    public OAuth2Client(OAuth2Properties properties, WebClient webClient) {
+    public OAuth2Client(OAuth2Properties properties, WebClient webClient, DPoPService dPoPService) {
         this.properties = properties;
         this.webClient = webClient;
+        this.dPoPService = dPoPService;
     }
 
     public String authorizationUrl(WebSession session) {
@@ -36,7 +32,6 @@ public class OAuth2Client {
         String codeVerifier = generateCodeVerifier();
         String codeChallenge = generateCodeChallenge(codeVerifier);
 
-        // Store state and code_verifier in session for later validation
         session.getAttributes().put("oauth_state", state);
         session.getAttributes().put("code_verifier", codeVerifier);
 
@@ -51,36 +46,30 @@ public class OAuth2Client {
     }
 
     public Mono<OAuth2AccessTokenResponse> tokenExchange(WebSession session, String authorizationCode) {
-        String codeVerifier = (String) session.getAttribute("code_verifier");
+        String codeVerifier = (String) session.getAttributes().get("code_verifier");
         if (codeVerifier == null) {
-            logger.error("code_verifier not found in session");
-            throw new IllegalArgumentException("code_verifier not found in session");
+            return Mono.error(new IllegalStateException("code_verifier not found in session"));
         }
 
-        OAuth2AccessTokenRequest tokenRequest = new OAuth2AccessTokenRequest()
-                .with(GRANT_TYPE, "authorization_code")
-                .with(CODE, authorizationCode)
-                .with(CLIENT_ID, properties.getClientId())
-                .with(CLIENT_SECRET, properties.getClientSecret())
-                .with(REDIRECT_URI, properties.getRedirectUri())
-                .with("permission", "Home#app-basic")
-                .with("code_verifier", codeVerifier);
+        OAuth2AccessTokenRequest request =
+                new OAuth2AccessTokenRequest().from(properties, authorizationCode, codeVerifier);
+        if (properties.isDpopEnabled()) {
+            String dpopProof = dPoPService.generateDPoP("POST", properties.getTokenUri(), null);
+            request.withHeader("DPoP", dpopProof);
+        }
 
-        logger.info("Sending token exchange request to for client {} to {}", properties.getClientId(), tokenRequest.toString());
-
-        return webClient
-                .post()
+        return webClient.post()
                 .uri(properties.getTokenUri())
-                .contentType(APPLICATION_FORM_URLENCODED)
-                .accept(APPLICATION_JSON)
-                .bodyValue(tokenRequest.getBody())
+                .headers(httpHeaders -> httpHeaders.addAll(request.getHttpHeaders()))
+                .bodyValue(request.getBody())
                 .retrieve()
                 .bodyToMono(OAuth2AccessTokenResponse.class)
-                .onErrorStop()
-                .doOnSuccess(tokenResponse -> {
+                .doOnNext(tokenResponse -> {
                     session.getAttributes().put("access_token", tokenResponse.getAccessToken());
                     session.getAttributes().put("token_type", tokenResponse.getTokenType());
                     session.getAttributes().put("expires_in", tokenResponse.getExpiresIn());
-                });
+                    logger.debug("Token exchange successful, stored tokens in session");
+                })
+                .onErrorStop();
     }
 }

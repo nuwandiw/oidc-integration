@@ -3,22 +3,26 @@ spring:
     name: frontend-app
 
   oauth2:
+    resourceserver:
+      jwt:
+        issuer-uri: https://kc.idp.com:8443/realms/IBM
+        jwk-set-uri: https://kc.idp.com:8443/realms/IBM/protocol/openid-connect/certs
     client:
       id: frontend-app
+      secret: your-client-secret
       scope: basic
       authorization-uri: https://kc.idp.com:8443/realms/IBM/protocol/openid-connect/auth
       token-uri: https://kc.idp.com:8443/realms/IBM/protocol/openid-connect/token
       redirect-uri: http://localhost:8081/oauth2/callback
-    custom-idp:
-      client-id: frontend-app
-      redirect-uri: http://localhost:8081/oauth2/callback
-      scope: basic
-      authorization-uri: https://kc.idp.com:8443/realms/IBM/protocol/openid-connect/auth
-      token-uri: https://kc.idp.com:8443/realms/IBM/protocol/openid-connect/token
+      dpop: true
 
 server:
   port: 8081
 
+logging:
+  level:
+    org:
+      keycloak: DEBUG
 keycloak:
   policy-enforcer-config:
     enforcement-mode: ENFORCING

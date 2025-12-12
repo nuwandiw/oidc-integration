@@ -2,7 +2,6 @@ package com.calendar.frontendapp.security;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextImpl;
@@ -11,10 +10,8 @@ import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
-import java.net.URI;
-
 /**
- * WebFilter for extracting and validating OAuth2 access tokens from the session.
+ * Reactive WebFilter for extracting and validating OAuth2 access tokens from the WebSession.
  * If an access token is found in the session, it creates an OAuth2AuthenticationToken
  * and establishes it in the SecurityContext for the request.
  */
@@ -24,10 +21,13 @@ public class SessionAuthenticationFilter implements WebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        String path = exchange.getRequest().getPath().value();
+        String path = exchange.getRequest().getURI().getPath();
+
+        // Skip filtering for public endpoints
         if (path.equals("/") || path.equals("/login") || path.startsWith("/oauth2/callback") || path.equals("/oauth2/authorize")) {
             return chain.filter(exchange);
         }
+
         return exchange.getSession()
                 .flatMap(session -> {
                     String accessToken = (String) session.getAttributes().get("access_token");
@@ -36,8 +36,6 @@ public class SessionAuthenticationFilter implements WebFilter {
 
                     if (accessToken != null && !accessToken.isEmpty()) {
                         logger.debug("Found access token in session for user: {}", username != null ? username : "unknown");
-
-                        // Create custom OAuth2 authentication token
                         OAuth2AuthenticationToken authToken = new OAuth2AuthenticationToken(
                                 username != null ? username : "anonymous-user",
                                 accessToken,
@@ -45,18 +43,19 @@ public class SessionAuthenticationFilter implements WebFilter {
                                 java.util.Collections.emptyList()
                         );
 
-                        // Create SecurityContext with the authentication token
                         SecurityContext securityContext = new SecurityContextImpl(authToken);
-
                         logger.debug("Session-based authentication established for user: {}", authToken.getName());
 
                         return chain.filter(exchange)
                                 .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(Mono.just(securityContext)));
+                    } else {
+                        logger.info("No access token found in session, redirecting to login");
+                        exchange.getResponse().setStatusCode(org.springframework.http.HttpStatus.FOUND);
+                        exchange.getResponse().getHeaders().setLocation(
+                                exchange.getRequest().getURI().resolve("/login")
+                        );
+                        return exchange.getResponse().setComplete();
                     }
-                    logger.info("No access token found in session");
-                    exchange.getResponse().setStatusCode(HttpStatus.FOUND);
-                    exchange.getResponse().getHeaders().setLocation(URI.create("/login"));
-                    return Mono.empty();
                 });
     }
 }

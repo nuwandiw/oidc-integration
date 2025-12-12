@@ -121,6 +121,130 @@
         .auth-details strong {
             color: #333;
         }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #667eea;
+            margin-top: 20px;
+            font-weight: 600;
+        }
+
+        .error-message {
+            display: none;
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .calendar-section {
+            display: none;
+        }
+
+        .calendar-section.show {
+            display: block;
+        }
+
+        .calendar-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .calendar-header h2 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 22px;
+        }
+
+        .week-range {
+            color: #666;
+            font-size: 13px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+            margin-bottom: 30px;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .calendar-day {
+            background-color: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px 10px;
+            text-align: center;
+            transition: all 0.2s;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .calendar-day:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .calendar-day.today {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        .calendar-day.weekend {
+            background-color: #f0f0f0;
+        }
+
+        .day-name {
+            font-weight: 600;
+            font-size: 12px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            line-height: 1.2;
+        }
+
+        .day-number {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 3px;
+        }
+
+        .back-button {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-bottom: 20px;
+            transition: background-color 0.2s;
+        }
+
+        .back-button:hover {
+            background-color: #5a6268;
+        }
     </style>
 </head>
 <body>
@@ -136,19 +260,201 @@
 
     <div class="container">
         <h1>Home</h1>
-        <div class="welcome-message">
-            <p>You have successfully logged in with OAuth2 OIDC!</p>
-            <p>Click the button below to navigate to the Calendar page.</p>
+
+        <!-- Calendar Button Section (hidden if calendar is present) -->
+        <div id="welcome-section" th:style="${calendar != null ? 'display:none' : ''}">
+            <div class="welcome-message">
+                <p>You have successfully logged in with OAuth2 OIDC!</p>
+            </div>
+
+            <button id="calendar-button" class="calendar-button" th:data-access-token="${accessToken}" onclick="callCalendarApi()">Show Calendar</button>
+
+            <div id="loading" class="loading">
+                <p>Loading calendar data...</p>
+            </div>
+
+            <div id="error" class="error-message"></div>
+
+            <div class="auth-details">
+                <p><strong>Authentication Provider:</strong> OAuth2 OIDC</p>
+                <p><strong>User:</strong> <span th:text="${username}"></span></p>
+                <p th:if="${clientName}"><strong>Provider Name:</strong> <span th:text="${clientName}"></span></p>
+                <p><strong>Session Started:</strong> <span th:text="${#dates.format(#dates.createNow(), 'yyyy-MM-dd HH:mm:ss')}"></span></p>
+            </div>
         </div>
 
-        <a href="/calendar" class="calendar-button">Go to Calendar</a>
+        <!-- Calendar Display Section (populated dynamically via API) -->
+        <div id="calendar-content" class="calendar-section">
+            <button class="back-button" onclick="goBack()">← Back</button>
 
-        <div class="auth-details">
-            <p><strong>Authentication Provider:</strong> OAuth2 OIDC</p>
-            <p><strong>User:</strong> <span th:text="${username}"></span></p>
-            <p th:if="${clientName}"><strong>Provider Name:</strong> <span th:text="${clientName}"></span></p>
-            <p><strong>Session Started:</strong> <span th:text="${#dates.format(#dates.createNow(), 'yyyy-MM-dd HH:mm:ss')}"></span></p>
+            <div class="calendar-header">
+                <h2>Week Calendar</h2>
+                <p class="week-range"></p>
+            </div>
+
+            <div class="calendar-grid"></div>
         </div>
     </div>
+
+    <script>
+        /**
+         * Calls the /api/calendar endpoint with Bearer token authorization.
+         * Retrieves the access token from the button's data attribute.
+         */
+        function callCalendarApi() {
+            const calendarButton = document.getElementById('calendar-button');
+            const accessToken = calendarButton.getAttribute('data-access-token');
+
+            // Validate that access token is available
+            if (!accessToken) {
+                showError('Access token not available. Please log in again.');
+                console.error('Access token is missing from the page context');
+                return;
+            }
+
+            // Show loading indicator
+            showLoading(true);
+            hideError();
+
+            // Disable button during request
+            calendarButton.disabled = true;
+
+            // Make fetch request with Bearer token
+            fetch('/api/calendar', {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + accessToken,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'  // Include cookies for session management
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // Handle HTTP errors
+                    return response.text().then(text => {
+                        throw new Error(`HTTP ${response.status}: ${text || response.statusText}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Calendar API response:', data);
+                showLoading(false);
+                displayCalendar(data);
+            })
+            .catch(error => {
+                console.error('Error calling calendar API:', error);
+                showLoading(false);
+                showError('Failed to load calendar: ' + error.message);
+            })
+            .finally(() => {
+                // Re-enable button
+                calendarButton.disabled = false;
+            });
+        }
+
+        /**
+         * Shows or hides the loading indicator.
+         * @param {boolean} show - true to show, false to hide
+         */
+        function showLoading(show) {
+            const loadingDiv = document.getElementById('loading');
+            if (show) {
+                loadingDiv.classList.add('show');
+            } else {
+                loadingDiv.classList.remove('show');
+            }
+        }
+
+        /**
+         * Displays an error message to the user.
+         * @param {string} message - The error message to display
+         * @param {string} type - 'error' or 'success' (optional)
+         */
+        function showError(message, type = 'error') {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+
+            if (type === 'success') {
+                errorDiv.style.backgroundColor = '#d4edda';
+                errorDiv.style.color = '#155724';
+                errorDiv.style.borderColor = '#c3e6cb';
+            } else {
+                errorDiv.style.backgroundColor = '#f8d7da';
+                errorDiv.style.color = '#721c24';
+                errorDiv.style.borderColor = '#f5c6cb';
+            }
+        }
+
+        /**
+         * Hides the error message.
+         */
+        function hideError() {
+            const errorDiv = document.getElementById('error');
+            errorDiv.classList.remove('show');
+        }
+
+        /**
+         * Goes back to the welcome section from the calendar view.
+         */
+        function goBack() {
+            const welcomeSection = document.getElementById('welcome-section');
+            const calendarContent = document.getElementById('calendar-content');
+
+            welcomeSection.style.display = 'block';
+            calendarContent.classList.remove('show');
+        }
+
+        /**
+         * Displays the calendar data dynamically.
+         * @param {Object} calendarData - The calendar data from the API
+         */
+        function displayCalendar(calendarData) {
+            console.log('Displaying calendar:', calendarData);
+
+            // Update calendar header with dates and week number
+            const weekStartDateEl = document.querySelector('.week-range');
+            if (weekStartDateEl) {
+                weekStartDateEl.innerHTML =
+                    `<span>${calendarData.weekStartDate}</span> to <span>${calendarData.weekEndDate}</span> (Week <span>${calendarData.weekNumber}</span>)`;
+            }
+
+            // Build calendar grid with days
+            const calendarGrid = document.querySelector('.calendar-grid');
+            if (calendarGrid && calendarData.days) {
+                calendarGrid.innerHTML = '';
+
+                calendarData.days.forEach(day => {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'calendar-day';
+
+                    // Add classes for today and weekend
+                    if (day.isToday) {
+                        dayElement.classList.add('today');
+                    }
+                    if (day.isWeekend) {
+                        dayElement.classList.add('weekend');
+                    }
+
+                    dayElement.innerHTML = `
+                        <div class="day-name">${day.dayName}</div>
+                        <div class="day-number">${day.dayOfMonth}</div>
+                        <div style="font-size: 12px; color: #999;">${day.date}</div>
+                    `;
+
+                    calendarGrid.appendChild(dayElement);
+                });
+            }
+
+            // Hide welcome section and show calendar
+            const welcomeSection = document.getElementById('welcome-section');
+            const calendarContent = document.getElementById('calendar-content');
+
+            welcomeSection.style.display = 'none';
+            calendarContent.classList.add('show');
+        }
+    </script>
 </body>
 </html>
