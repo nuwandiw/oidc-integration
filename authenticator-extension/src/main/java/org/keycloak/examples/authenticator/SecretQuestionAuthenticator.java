@@ -92,6 +92,8 @@ public class SecretQuestionAuthenticator implements Authenticator, CredentialVal
                     .findFirst()
                     .map(SecretQuestionCredentialModel::createFromCredentialModel);
 
+            //TODO: read other 2nd factor authenticators configured for the user and show them as options
+
             String question = sqAuthModel.isPresent() ? sqAuthModel.get().getSecretQuestionCredentialData().getQuestion() : "";
             Response challenge =  context.form()
                     .setAttribute("question", question)
