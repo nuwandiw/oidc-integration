@@ -1,15 +1,6 @@
 # Frontend App - Spring WebFlux OIDC Client
 
-A modern, reactive Spring WebFlux application that implements OAuth2/OIDC (OpenID Connect) authorization code grant flow with support for Demonstration of Proof-of-Possession (DPoP).
-
-## Features
-
-- **Spring WebFlux**: Non-blocking, reactive web framework for improved scalability and resource utilization
-- **OAuth2/OIDC Authorization Code Grant Flow**: Full implementation with PKCE support for enhanced security
-- **DPoP (Demonstration of Proof-of-Possession)**: Optional cryptographic proof mechanism to bind tokens to specific clients, preventing token misuse
-- **WebSession**: Reactive session management using Spring WebFlux's WebSession instead of traditional HttpSession
-- **WebClient**: Non-blocking HTTP client for all external API calls
-- **Reactive Controllers**: Handler methods return `Mono<T>` and `Flux<T>` for true reactive pipelines
+An application that implements OAuth2/OIDC (OpenID Connect) authorization code grant flow with support for Demonstration of Proof-of-Possession (DPoP).
 
 ## Architecture
 
@@ -45,7 +36,7 @@ Configures Spring Security with WebFlux:
 
 ### Controllers
 
-#### FrontendController (`com.calendar.frontendapp.controller.FrontendController`)
+#### Frontend (`com.calendar.frontendapp.controller.Frontend`)
 Handles OAuth2/OIDC flow endpoints:
 - `GET /` - Redirects to login page
 - `GET /login` - Login page with OAuth2 authorization initiation
@@ -53,7 +44,7 @@ Handles OAuth2/OIDC flow endpoints:
 - `GET /oauth2/callback` - Handles authorization code callback
 - `GET /home` - Protected home page after successful authentication
 
-#### RestController (`com.calendar.frontendapp.controller.RestController`)
+#### RestApi (`com.calendar.frontendapp.controller.RestApi`)
 Provides reactive API endpoints:
 - `GET /api/calendar` - Returns calendar data (protected resource, requires authentication)
 
@@ -121,63 +112,6 @@ User Agent                    Frontend App                  Authorization Server
    - Creates OAuth2AuthenticationToken with token details
    - Establishes security context using ReactiveSecurityContextHolder
 
-## DPoP (Demonstration of Proof-of-Possession)
-
-### Overview
-
-DPoP is an OAuth2 security extension that binds access tokens to specific clients using cryptographic proofs. This prevents token misuse if tokens are intercepted or stolen.
-
-### How It Works
-
-1. **Key Pair Generation**
-   - Client generates an asymmetric key pair (public/private)
-   - Private key is kept secure on the client
-   - Public key is included in the DPoP proof
-
-2. **DPoP Proof Generation**
-   - DPoP proof is a JWT with the following claims:
-     - `jti`: Unique token identifier (prevents replay)
-     - `htm`: HTTP method (POST for token requests)
-     - `htu`: HTTP URI (token endpoint URL)
-     - `iat`: Issued at timestamp
-     - `exp`: Expiration time
-   - Proof is signed with the client's private key
-
-3. **Token Binding**
-   - DPoP proof is sent in the `DPoP` header during token requests
-   - Authorization server validates the proof
-   - Access token is bound to the public key in the proof
-   - Token can only be used by clients presenting valid DPoP proofs
-
-### Using DPoPService
-
-```java
-// Inject DPoPService
-@Autowired
-private DPoPService dPoPService;
-
-// Generate DPoP proof for token request
-String dpopProof = dPoPService.generateDPoP(
-    "POST",                                    // HTTP method
-    "https://auth-server.com/token",          // Token endpoint URI
-    null                                        // Optional claims
-);
-
-// Use DPoP proof in HTTP headers
-headers.add("DPoP", dpopProof);
-```
-
-### Configuration
-
-Enable DPoP in `application.yml`:
-
-```yaml
-spring:
-  oauth2:
-    client:
-      dpop: true  # Set to false to disable DPoP
-```
-
 ## Configuration
 
 ### application.yml
@@ -205,69 +139,13 @@ spring:
       enable: false  # Enable if using Keycloak policy enforcer
 ```
 
-## Project Structure
-
-```
-frontend-app/
-├── src/main/java/com/calendar/frontendapp/
-│   ├── controller/
-│   │   ├── FrontendController.java       # OIDC flow endpoints
-│   │   └── RestController.java           # API endpoints
-│   ├── security/
-│   │   ├── SecurityConfig.java           # WebFlux security configuration
-│   │   ├── OAuth2AuthenticationToken.java # Custom auth token
-│   │   └── SessionAuthenticationFilter.java # Reactive session filter
-│   └── security/oauth2/
-│       ├── OAuth2Client.java             # OAuth2/OIDC client implementation
-│       ├── OAuth2ClientConfig.java       # OAuth2 configuration
-│       ├── OAuth2Properties.java         # Configuration properties
-│       ├── OAuthUtil.java                # OAuth2 utility methods
-│       ├── OAuth2AccessTokenRequest.java # Token request DTO
-│       ├── OAuth2AccessTokenResponse.java # Token response DTO
-│       └── dpop/
-│           ├── DPoPService.java          # DPoP proof generation
-│           ├── DPoPConfig.java           # DPoP configuration
-│           └── KeyPairLoader.java        # Key pair loading utilities
-├── src/main/resources/
-│   ├── application.yml                   # Application configuration
-│   ├── templates/
-│   │   ├── login.html                    # Login page
-│   │   └── home.html                     # Home page (authenticated)
-└── pom.xml                               # Maven configuration
-```
-
-## Security Considerations
-
-1. **PKCE (Proof Key for Authorization Code)**
-   - Always enabled to prevent authorization code interception
-   - Code verifier is cryptographically random and stored securely in WebSession
-   - Code challenge is derived from code verifier
-
-2. **State Parameter**
-   - Random state is generated for each authorization request
-   - Stored in WebSession to prevent CSRF attacks
-   - Validated on callback (currently not validated - implement in production)
-
-3. **DPoP (Optional)**
-   - Prevents token substitution and replay attacks
-   - Binds tokens to specific clients using cryptographic proofs
-   - Enable in production for enhanced security
-
-4. **Session Security**
-   - Uses reactive WebSession with server-side storage
-   - CSRF protection can be enabled in SecurityConfig
-   - Tokens are never exposed to client-side JavaScript
-
-5. **HTTPS**
-   - Must use HTTPS in production
-   - OAuth2/OIDC requires secure communication channels
-
 ## Building and Running
 
 ### Prerequisites
 - Java 17 or later
 - Maven 3.6+
 - Access to an OIDC-compliant authorization server (e.g., Keycloak)
+- Public and private key files inside `ssh` directory for DPoP 
 
 ### Build
 
@@ -289,86 +167,13 @@ mvn spring-boot:run
 
 The application will start on `http://localhost:8081`
 
-## Technologies Used
-
-- **Spring Boot 3.2.10**: Application framework
-- **Spring WebFlux**: Reactive web framework with Project Reactor
-- **Spring Security**: Security framework with reactive support
-- **Spring Cloud**: OAuth2/OIDC support
-- **WebClient**: Non-blocking HTTP client
-- **Thymeleaf**: Server-side template engine
-- **Keycloak Libraries**: OIDC support and DPoP utilities
-- **BouncyCastle**: Cryptography library
-- **Project Reactor**: Reactive programming library (Mono, Flux)
-
 ## Endpoints
 
 ### Public Endpoints
-- `GET /` - Redirects to login
 - `GET /login` - Login page
 - `POST /oauth2/authorize` - Initiate OAuth2 authorization
 - `GET /oauth2/callback` - Authorization code callback handler
 
 ### Protected Endpoints (Require Authentication)
-- `GET /home` - Home page
-- `GET /api/calendar` - Calendar data API
-
-## Reactive Programming Model
-
-All components follow reactive programming patterns:
-
-```java
-// Controller methods return Mono<T>
-@GetMapping("/home")
-public Mono<String> home(WebSession session, Model model) {
-    // Handler logic
-    return Mono.just("home");
-}
-
-// OAuth2Client.tokenExchange() returns Mono<OAuth2AccessTokenResponse>
-public Mono<OAuth2AccessTokenResponse> tokenExchange(WebSession session, String code) {
-    return webClient.post()
-            .uri(properties.getTokenUri())
-            .retrieve()
-            .bodyToMono(OAuth2AccessTokenResponse.class);
-}
-
-// Non-blocking session access
-public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-    return exchange.getSession()
-            .flatMap(session -> {
-                // Session processing
-                return chain.filter(exchange);
-            });
-}
-```
-
-## Error Handling
-
-The application handles errors gracefully:
-- Missing or invalid authorization codes: Redirects to login with error message
-- Token exchange failures: Redirects to login with error details
-- Session expiration: Redirects to login
-- Missing PKCE code verifier: Returns error response
-
-## Future Enhancements
-
-- [ ] State parameter validation on callback
-- [ ] Token refresh implementation
-- [ ] Logout endpoint with token revocation
-- [ ] Additional OIDC scopes (id_token verification)
-- [ ] Multi-tenant support
-- [ ] Rate limiting for token endpoint
-- [ ] Audit logging for security events
-
-## Support
-
-For issues or questions related to:
-- **OIDC/OAuth2**: Refer to [RFC 6749 (OAuth 2.0)](https://tools.ietf.org/html/rfc6749) and [OpenID Connect Core](https://openid.net/specs/openid-connect-core-1_0.html)
-- **PKCE**: Refer to [RFC 7636](https://tools.ietf.org/html/rfc7636)
-- **DPoP**: Refer to [DPoP specification](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-dpop)
-- **Spring WebFlux**: Refer to [Spring WebFlux documentation](https://docs.spring.io/spring-framework/reference/web/webflux.html)
-
-## License
-
-[Add your license information here]
+- `GET /home` - Home page. Needs an active session
+- `GET /api/calendar` - Calendar data API. Checks for a valid JWT in Authorization header
