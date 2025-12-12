@@ -1,0 +1,9 @@
+/Users/nwickramasin/personal/projects/oidc-integration/authenticator-extension/src/main/java/org/keycloak/examples/authenticator/SecretQuestionAuthenticator.java
+/Users/nwickramasin/personal/projects/oidc-integration/authenticator-extension/src/main/java/org/keycloak/examples/authenticator/SecretQuestionAuthenticatorFactory.java
+/Users/nwickramasin/personal/projects/oidc-integration/authenticator-extension/src/main/java/org/keycloak/examples/authenticator/SecretQuestionCredentialProvider.java
+/Users/nwickramasin/personal/projects/oidc-integration/authenticator-extension/src/main/java/org/keycloak/examples/authenticator/SecretQuestionCredentialProviderFactory.java
+/Users/nwickramasin/personal/projects/oidc-integration/authenticator-extension/src/main/java/org/keycloak/examples/authenticator/SecretQuestionRequiredAction.java
+/Users/nwickramasin/personal/projects/oidc-integration/authenticator-extension/src/main/java/org/keycloak/examples/authenticator/SecretQuestionRequiredActionFactory.java
+/Users/nwickramasin/personal/projects/oidc-integration/authenticator-extension/src/main/java/org/keycloak/examples/authenticator/credential/SecretQuestionCredentialModel.java
+/Users/nwickramasin/personal/projects/oidc-integration/authenticator-extension/src/main/java/org/keycloak/examples/authenticator/credential/dto/SecretQuestionCredentialData.java
+/Users/nwickramasin/personal/projects/oidc-integration/authenticator-extension/src/main/java/org/keycloak/examples/authenticator/credential/dto/SecretQuestionSecretData.java
